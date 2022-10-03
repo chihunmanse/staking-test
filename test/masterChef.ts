@@ -3,8 +3,6 @@ import { Contract } from "ethers";
 import { ethers, expect, network } from "hardhat";
 
 describe("Master Chef", () => {
-  const VERSION = 1;
-
   let admin: SignerWithAddress, notAdmin: SignerWithAddress;
   let masterChef: Contract, sushiToken: Contract;
 
