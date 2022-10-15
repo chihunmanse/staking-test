@@ -30,6 +30,7 @@ describe("Master Chef", () => {
   describe("", () => {
     it("", async () => {
       console.log(masterChef.address);
+      console.log(await masterChef.poolLength());
     });
   });
 });
