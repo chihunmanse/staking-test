@@ -6,8 +6,8 @@ describe("Uniswap", () => {
   let admin: SignerWithAddress, notAdmin: SignerWithAddress;
   let uniswapFactory: Contract,
     uniswapPair: Contract,
-    token1: Contract,
-    token2: Contract;
+    token0: Contract,
+    token1: Contract;
 
   before(async () => {
     [admin, notAdmin] = await ethers.getSigners();
@@ -20,18 +20,18 @@ describe("Uniswap", () => {
     await uniswapFactory.deployed();
 
     const ERC20 = await ethers.getContractFactory("ERC20Test");
+    token0 = await ERC20.deploy(100000);
+    await token0.deployed();
+
     token1 = await ERC20.deploy(100000);
     await token1.deployed();
-
-    token2 = await ERC20.deploy(100000);
-    await token2.deployed();
   });
 
   describe("UniswapFactory", () => {
     it("createPair", async () => {
       const createPairTx = await uniswapFactory.createPair(
-        token1.address,
-        token2.address
+        token0.address,
+        token1.address
       );
       await createPairTx.wait();
 
@@ -43,6 +43,19 @@ describe("Uniswap", () => {
         UniswapPair.interface,
         admin
       );
+    });
+
+    it("set token number", async () => {
+      const token0Address = await uniswapPair.token0();
+      const token1Address = await uniswapPair.token1();
+
+      if (token0Address.toLowerCase() !== token0.address.toLowerCase()) {
+        token0 = token1;
+        token1 = token0;
+      }
+
+      expect(token0Address).to.equal(token0.address);
+      expect(token1Address).to.equal(token1.address);
     });
   });
 });
