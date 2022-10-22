@@ -43,10 +43,15 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
         (uint reserveA, uint reserveB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
+        // pair 컨트랙에서 tokenA, tokenB 유동성 풀 토큰량 조회
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
+            // 풀에 토큰이 존재하지 않을때 원하는 유동성 추가 토큰양 그대로 반환
         } else {
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
+            // B token 양 = A token 요청량 * B token 공급량 / A toekn 공급량
+            // ex) reserve A 10 / reserve B 50 일 때 추가하고자 하는 A 토큰이 5라면
+            // 쌍으로 추가해야할 B 토큰 양 : 5 * 10 / 50 = 1
             if (amountBOptimal <= amountBDesired) {
                 require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
                 (amountA, amountB) = (amountADesired, amountBOptimal);
@@ -73,6 +78,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
         liquidity = IUniswapV2Pair(pair).mint(to);
+        // pair 컨트랙으로 토큰 transfer 후에 mint 함수 call
     }
     function addLiquidityETH(
         address token,

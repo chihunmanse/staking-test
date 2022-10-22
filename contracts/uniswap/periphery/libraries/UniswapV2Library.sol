@@ -37,6 +37,9 @@ library UniswapV2Library {
         require(amountA > 0, 'UniswapV2Library: INSUFFICIENT_AMOUNT');
         require(reserveA > 0 && reserveB > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
         amountB = amountA.mul(reserveB) / reserveA;
+        // B token 양 = A token 요청량 * B token 공급량 / A toekn 공급량
+        // ex) reserve A 10 / reserve B 50 일 때 추가하고자 하는 A 토큰이 5라면
+        // 쌍으로 추가해야할 B 토큰 양 : 5 * 10 / 50 = 1
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset

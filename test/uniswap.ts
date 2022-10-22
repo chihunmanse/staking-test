@@ -4,8 +4,10 @@ import { ethers, expect, network } from "hardhat";
 
 describe("Uniswap", () => {
   let admin: SignerWithAddress, notAdmin: SignerWithAddress;
-  let uniswapFactory: Contract,
+  let uniswapRouter: Contract,
+    uniswapFactory: Contract,
     uniswapPair: Contract,
+    WETH: Contract,
     token0: Contract,
     token1: Contract;
 
