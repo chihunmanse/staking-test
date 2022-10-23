@@ -50,15 +50,22 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         } else {
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
             // B token 양 = A token 요청량 * B token 공급량 / A toekn 공급량
-            // ex) reserve A 10 / reserve B 50 일 때 추가하고자 하는 A 토큰이 5라면
-            // 쌍으로 추가해야할 B 토큰 양 : 5 * 10 / 50 = 1
+            // ex) reserve A 10 / reserve B 20 일 때 추가하고자 하는 A 토큰이 5라면
+            // 쌍으로 추가해야할 B 토큰 양 : 5 * 10 / 20 = 2.5
             if (amountBOptimal <= amountBDesired) {
+                // B token 요청량이 B token 쌍 값(A 요청량이 5일 때 2.5) 이상이라면 
                 require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
+                // B token 쌍 값이 최소 토큰양 이상인지 확인
                 (amountA, amountB) = (amountADesired, amountBOptimal);
+                // 토큰양 조정
             } else {
+                // B token 요청량이 B token 쌍 값(A 요청량이 5일 때 2.5) 미만이라면 
                 uint amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
+                // B token 요청량이 1인 경우 쌍으로 추가해야할 A 토큰 양 : 1 * 20 / 10 = 2
                 assert(amountAOptimal <= amountADesired);
+                // A toekn 요쳥량이 A token 쌍 값 이상인지 확인
                 require(amountAOptimal >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
+                // A token 쌍 값이 최소 토큰양 이상인지 확인
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
             }
         }
