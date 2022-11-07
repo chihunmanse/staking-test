@@ -1,9 +1,12 @@
+/** @format */
+
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 import { ethers, expect, network } from "hardhat";
+import { getCurrentBlockTimestamp } from "./../helpers/block-timestamp";
 
 describe("Uniswap", () => {
-  let admin: SignerWithAddress, notAdmin: SignerWithAddress;
+  let owner1: SignerWithAddress, owner2: SignerWithAddress;
   let uniswapRouter: Contract,
     uniswapFactory: Contract,
     uniswapPair: Contract,
@@ -12,14 +15,35 @@ describe("Uniswap", () => {
     token1: Contract;
 
   before(async () => {
-    [admin, notAdmin] = await ethers.getSigners();
-    console.log("Deploying contracts with the account: " + admin.address);
+    [owner1, owner2] = await ethers.getSigners();
+    console.log("Deploying contracts with the account: " + owner1.address);
 
     const UniswapV2Factory = await ethers.getContractFactory(
       "UniswapV2Factory"
     );
-    uniswapFactory = await UniswapV2Factory.deploy(admin.address);
+    const UniswapV2FactoryBytecode =
+      require("@uniswap/v2-core/build/UniswapV2Factory.json").bytecode;
+
+    const Factory = new ethers.ContractFactory(
+      UniswapV2Factory.interface,
+      UniswapV2FactoryBytecode,
+      owner1
+    );
+    uniswapFactory = await Factory.deploy(owner1.address);
     await uniswapFactory.deployed();
+
+    const WETH9 = await ethers.getContractFactory("WETH9");
+    WETH = await WETH9.deploy();
+    await WETH.deployed();
+
+    const UniswapV2Router = await ethers.getContractFactory(
+      "UniswapV2Router02"
+    );
+    uniswapRouter = await UniswapV2Router.deploy(
+      uniswapFactory.address,
+      WETH.address
+    );
+    await uniswapRouter.deployed();
 
     const ERC20 = await ethers.getContractFactory("ERC20Test");
     token0 = await ERC20.deploy(100000);
@@ -29,35 +53,37 @@ describe("Uniswap", () => {
     await token1.deployed();
   });
 
-  describe("UniswapFactory", () => {
-    it("createPair", async () => {
-      const createPairTx = await uniswapFactory.createPair(
+  describe("Liquidity", () => {
+    it("Add Liquidity", async () => {
+      const token0ApproveTx = await token0.approve(
+        uniswapRouter.address,
+        100000
+      );
+      await token0ApproveTx.wait();
+
+      const token1ApproveTx = await token1.approve(
+        uniswapRouter.address,
+        100000
+      );
+      await token1ApproveTx.wait();
+
+      console.log(await token0.balanceOf(owner1.address));
+
+      const timestamp = await getCurrentBlockTimestamp();
+      const addLiquidityTx = await uniswapRouter.addLiquidity(
         token0.address,
-        token1.address
+        token1.address,
+        10,
+        10,
+        10,
+        10,
+        owner1.address,
+        timestamp + 100
       );
-      await createPairTx.wait();
 
-      expect(createPairTx).to.emit(uniswapFactory, "PairCreated");
-      const pairAddress = await uniswapFactory.allPairs(0);
-      const UniswapPair = await ethers.getContractFactory("UniswapV2Pair");
-      uniswapPair = new ethers.Contract(
-        pairAddress,
-        UniswapPair.interface,
-        admin
-      );
-    });
+      await addLiquidityTx.wait();
 
-    it("set token number", async () => {
-      const token0Address = await uniswapPair.token0();
-      const token1Address = await uniswapPair.token1();
-
-      if (token0Address.toLowerCase() !== token0.address.toLowerCase()) {
-        token0 = token1;
-        token1 = token0;
-      }
-
-      expect(token0Address).to.equal(token0.address);
-      expect(token1Address).to.equal(token1.address);
+      expect(addLiquidityTx).to.emit(uniswapFactory, "PairCreated");
     });
   });
 });
