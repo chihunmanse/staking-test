@@ -5,17 +5,27 @@ import { Contract } from "ethers";
 import { ethers, expect, network } from "hardhat";
 import { getCurrentBlockTimestamp } from "./../helpers/block-timestamp";
 
+const MINIMUM_LIQUIDITY = 1000;
+
 describe("Uniswap", () => {
-  let owner1: SignerWithAddress, owner2: SignerWithAddress;
+  let feeTo: SignerWithAddress,
+    owner1: SignerWithAddress,
+    owner2: SignerWithAddress;
   let uniswapRouter: Contract,
     uniswapFactory: Contract,
     uniswapPair: Contract,
     WETH: Contract,
-    token0: Contract,
-    token1: Contract;
+    tokenA: Contract,
+    tokenB: Contract;
+  let reserveA: number,
+    reserveB: number,
+    amountA: number,
+    amountB: number,
+    pairSupply: number,
+    pairBalance: number;
 
   before(async () => {
-    [owner1, owner2] = await ethers.getSigners();
+    [feeTo, owner1, owner2] = await ethers.getSigners();
     console.log("Deploying contracts with the account: " + owner1.address);
 
     const UniswapV2Factory = await ethers.getContractFactory(
@@ -27,9 +37,9 @@ describe("Uniswap", () => {
     const Factory = new ethers.ContractFactory(
       UniswapV2Factory.interface,
       UniswapV2FactoryBytecode,
-      owner1
+      feeTo
     );
-    uniswapFactory = await Factory.deploy(owner1.address);
+    uniswapFactory = await Factory.deploy(feeTo.address);
     await uniswapFactory.deployed();
 
     const WETH9 = await ethers.getContractFactory("WETH9");
@@ -46,44 +56,110 @@ describe("Uniswap", () => {
     await uniswapRouter.deployed();
 
     const ERC20 = await ethers.getContractFactory("ERC20Test");
-    token0 = await ERC20.deploy(100000);
-    await token0.deployed();
+    tokenA = await ERC20.deploy("100000000000000000000000");
+    await tokenA.deployed();
 
-    token1 = await ERC20.deploy(100000);
-    await token1.deployed();
+    tokenB = await ERC20.deploy("100000000000000000000000");
+    await tokenB.deployed();
+
+    const tokenAApproveTx = await tokenA.approve(
+      uniswapRouter.address,
+      "100000000000000000000000"
+    );
+    await tokenAApproveTx.wait();
+
+    const tokenBApproveTx = await tokenB.approve(
+      uniswapRouter.address,
+      "100000000000000000000000"
+    );
+    await tokenBApproveTx.wait();
   });
 
   describe("Liquidity", () => {
-    it("Add Liquidity", async () => {
-      const token0ApproveTx = await token0.approve(
-        uniswapRouter.address,
-        100000
-      );
-      await token0ApproveTx.wait();
-
-      const token1ApproveTx = await token1.approve(
-        uniswapRouter.address,
-        100000
-      );
-      await token1ApproveTx.wait();
-
-      console.log(await token0.balanceOf(owner1.address));
+    it("First Add Liquidity", async () => {
+      amountA = 10000;
+      amountB = 10000;
 
       const timestamp = await getCurrentBlockTimestamp();
       const addLiquidityTx = await uniswapRouter.addLiquidity(
-        token0.address,
-        token1.address,
-        10,
-        10,
+        tokenA.address,
+        tokenB.address,
+        amountA,
+        amountB,
         10,
         10,
         owner1.address,
-        timestamp + 100
+        Number(timestamp) + 100
       );
-
       await addLiquidityTx.wait();
 
+      const pair = await uniswapFactory.getPair(tokenA.address, tokenB.address);
+      const Pair = await ethers.getContractFactory("UniswapV2Pair");
+      uniswapPair = new ethers.Contract(pair, Pair.interface, owner1);
+
+      pairSupply = await uniswapPair.totalSupply();
+      pairBalance = await uniswapPair.balanceOf(owner1.address);
+      const reserves = await uniswapPair.getReserves();
+      const token0 = await uniswapPair.token0();
+
+      if (token0.toLowerCase() !== tokenA.address.toLowerCase()) {
+        tokenA = tokenB;
+        tokenB = tokenA;
+      }
+
+      reserveA = reserves[0].toNumber();
+      reserveB = reserves[1].toNumber();
+
       expect(addLiquidityTx).to.emit(uniswapFactory, "PairCreated");
+      expect(pairSupply).to.equal(Math.sqrt(amountA * amountB));
+      expect(pairBalance).to.equal(
+        Math.sqrt(amountA * amountB) - MINIMUM_LIQUIDITY
+      );
+      expect(reserveA).to.equal(amountA);
+      expect(reserveB).to.equal(amountB);
+    });
+
+    it("Add Liquidity", async () => {
+      amountA = 50000;
+      amountB = 30000;
+
+      const timestamp = await getCurrentBlockTimestamp();
+      const addLiquidityTx = await uniswapRouter.addLiquidity(
+        tokenA.address,
+        tokenB.address,
+        amountA,
+        amountB,
+        10,
+        10,
+        owner1.address,
+        Number(timestamp) + 100
+      );
+      await addLiquidityTx.wait();
+
+      const pair = await uniswapFactory.getPair(tokenA.address, tokenB.address);
+      const Pair = await ethers.getContractFactory("UniswapV2Pair");
+      uniswapPair = new ethers.Contract(pair, Pair.interface, owner1);
+
+      pairSupply = await uniswapPair.totalSupply();
+      pairBalance = await uniswapPair.balanceOf(owner1.address);
+      const reserves = await uniswapPair.getReserves();
+      const token0 = await uniswapPair.token0();
+
+      if (token0.toLowerCase() !== tokenA.address.toLowerCase()) {
+        tokenA = tokenB;
+        tokenB = tokenA;
+      }
+
+      reserveA = reserves[0].toNumber();
+      reserveB = reserves[1].toNumber();
+
+      expect(addLiquidityTx).to.emit(uniswapFactory, "PairCreated");
+      expect(pairSupply).to.equal(Math.sqrt(amountA * amountB));
+      expect(pairBalance).to.equal(
+        Math.sqrt(amountA * amountB) - MINIMUM_LIQUIDITY
+      );
+      expect(reserveA).to.equal(amountA);
+      expect(reserveB).to.equal(amountB);
     });
   });
 });
