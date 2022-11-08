@@ -100,54 +100,13 @@ describe("Uniswap", () => {
       pairSupply = await uniswapPair.totalSupply();
       pairBalance = await uniswapPair.balanceOf(owner1.address);
       const reserves = await uniswapPair.getReserves();
-      const token0 = await uniswapPair.token0();
+      const token0Address = await uniswapPair.token0();
 
-      if (token0.toLowerCase() !== tokenA.address.toLowerCase()) {
-        tokenA = tokenB;
-        tokenB = tokenA;
-      }
-
-      reserveA = reserves[0].toNumber();
-      reserveB = reserves[1].toNumber();
-
-      expect(addLiquidityTx).to.emit(uniswapFactory, "PairCreated");
-      expect(pairSupply).to.equal(Math.sqrt(amountA * amountB));
-      expect(pairBalance).to.equal(
-        Math.sqrt(amountA * amountB) - MINIMUM_LIQUIDITY
-      );
-      expect(reserveA).to.equal(amountA);
-      expect(reserveB).to.equal(amountB);
-    });
-
-    it("Add Liquidity", async () => {
-      amountA = 50000;
-      amountB = 30000;
-
-      const timestamp = await getCurrentBlockTimestamp();
-      const addLiquidityTx = await uniswapRouter.addLiquidity(
-        tokenA.address,
-        tokenB.address,
-        amountA,
-        amountB,
-        10,
-        10,
-        owner1.address,
-        Number(timestamp) + 100
-      );
-      await addLiquidityTx.wait();
-
-      const pair = await uniswapFactory.getPair(tokenA.address, tokenB.address);
-      const Pair = await ethers.getContractFactory("UniswapV2Pair");
-      uniswapPair = new ethers.Contract(pair, Pair.interface, owner1);
-
-      pairSupply = await uniswapPair.totalSupply();
-      pairBalance = await uniswapPair.balanceOf(owner1.address);
-      const reserves = await uniswapPair.getReserves();
-      const token0 = await uniswapPair.token0();
-
-      if (token0.toLowerCase() !== tokenA.address.toLowerCase()) {
-        tokenA = tokenB;
-        tokenB = tokenA;
+      const token0 = tokenA;
+      const token1 = tokenB;
+      if (token0Address.toLowerCase() !== tokenA.address.toLowerCase()) {
+        tokenA = token1;
+        tokenB = token0;
       }
 
       reserveA = reserves[0].toNumber();
